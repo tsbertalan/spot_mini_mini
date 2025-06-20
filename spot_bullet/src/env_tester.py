@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 
+from tqdm.auto import tqdm
+
 import sys, os
 from pathlib import Path
 HERE = Path(os.path.dirname(os.path.abspath(__file__)))
@@ -24,33 +26,31 @@ import time
 import os
 
 import argparse
+import cv2
 
 # ARGUMENTS
 descr = "Spot Mini Mini Environment Tester (No Joystick)."
 parser = argparse.ArgumentParser(description=descr)
-parser.add_argument("-hf",
-                    "--HeightField",
+parser.add_argument("--HeightField",
                     help="Use HeightField",
                     action='store_true')
-parser.add_argument("-r",
-                    "--DebugRack",
+parser.add_argument("--DebugRack",
                     help="Put Spot on an Elevated Rack",
                     action='store_true')
-parser.add_argument("-p",
-                    "--DebugPath",
+parser.add_argument("--DebugPath",
                     help="Draw Spot's Foot Path",
                     action='store_true')
-parser.add_argument("-ay",
-                    "--AutoYaw",
+parser.add_argument("--AutoYaw",
                     help="Automatically Adjust Spot's Yaw",
                     action='store_true')
-parser.add_argument("-ar",
-                    "--AutoReset",
+parser.add_argument("--AutoReset",
                     help="Automatically Reset Environment When Spot Falls",
                     action='store_true')
-parser.add_argument("-dr",
-                    "--DontRandomize",
+parser.add_argument("--DontRandomize",
                     help="Do NOT Randomize State and Environment.",
+                    action='store_true')
+parser.add_argument("--RenderVideo",
+                    help="Render Video of Simulation",
                     action='store_true')
 ARGS = parser.parse_args()
 
@@ -63,7 +63,7 @@ def main():
 
     print("STARTING SPOT TEST ENV")
     seed = 0
-    max_timesteps = 4e6
+    max_timesteps = 4e2
 
     # Find abs path to this file
     my_path = os.path.abspath(os.path.dirname(__file__))
@@ -135,102 +135,141 @@ def main():
 
     yaw = 0.0
 
+    if ARGS.RenderVideo:
+        # Create a directory for video frames
+        video_frames_path = os.path.join(results_path, "video_frames")
+        if not os.path.exists(video_frames_path):
+            os.makedirs(video_frames_path)
+
+        # Initialize video writer
+        video_path = os.path.join(results_path, "simulation_video.mp4")
+        frame_width, frame_height = 720, 960
+        fps = 30
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        video_writer = cv2.VideoWriter(video_path, fourcc, fps, (frame_width, frame_height))
+
     print("STARTED SPOT TEST ENV")
-    t = 0
-    while t < (int(max_timesteps)):
+    try:
+        t = 0
+        pbar = tqdm(total=int(max_timesteps), desc="Simulation Progress")
+        last_pbar_step_time = 0
+        while t < (int(max_timesteps)):
+            if t - last_pbar_step_time >= 1.0:  # Update progress bar every second
+                pbar.update(t - last_pbar_step_time)
+                last_pbar_step_time = t
 
-        bz_step.ramp_up()
+            
+            bz_step.ramp_up()
 
-        pos, orn, StepLength, LateralFraction, YawRate, StepVelocity, ClearanceHeight, PenetrationDepth = bz_step.StateMachine(
-        )
+            pos, orn, StepLength, LateralFraction, YawRate, StepVelocity, ClearanceHeight, PenetrationDepth = bz_step.StateMachine(
+            )
 
-        # Hardcoded values for UserInput
-        pos = [0.0, 0.0, 0.0]
-        orn = [0.0, 0.0, 0.0]
-        StepLength = 0.1
-        LateralFraction = 0.0
-        YawRate = 0.0
-        StepVelocity = 0.1
-        ClearanceHeight = 0.05
-        PenetrationDepth = 0.01
-        SwingPeriod = 0.5
+            # Hardcoded values for UserInput
+            pos = [0.0, 0.0, 0.0]
+            orn = [0.0, 0.0, 0.0]
+            StepLength = 0.1
+            LateralFraction = 0.0
+            YawRate = 0.0
+            StepVelocity = 0.1
+            ClearanceHeight = 0.05
+            PenetrationDepth = 0.01
+            SwingPeriod = 0.5
 
-        # Update Swing Period
-        bzg.Tswing = SwingPeriod
+            # Update Swing Period
+            bzg.Tswing = SwingPeriod
 
-        yaw = env.return_yaw()
+            yaw = env.return_yaw()
 
-        P_yaw = 5.0
+            P_yaw = 5.0
 
-        if ARGS.AutoYaw:
-            YawRate += -yaw * P_yaw
+            if ARGS.AutoYaw:
+                YawRate += -yaw * P_yaw
 
-        # print("YAW RATE: {}".format(YawRate))
+            # print("YAW RATE: {}".format(YawRate))
 
-        # TEMP
-        bz_step.StepLength = StepLength
-        bz_step.LateralFraction = LateralFraction
-        bz_step.YawRate = YawRate
-        bz_step.StepVelocity = StepVelocity
+            # TEMP
+            bz_step.StepLength = StepLength
+            bz_step.LateralFraction = LateralFraction
+            bz_step.YawRate = YawRate
+            bz_step.StepVelocity = StepVelocity
 
-        contacts = state[-4:]
+            contacts = state[-4:]
 
-        FL_phases.append(env.spot.LegPhases[0])
-        FR_phases.append(env.spot.LegPhases[1])
-        BL_phases.append(env.spot.LegPhases[2])
-        BR_phases.append(env.spot.LegPhases[3])
+            FL_phases.append(env.spot.LegPhases[0])
+            FR_phases.append(env.spot.LegPhases[1])
+            BL_phases.append(env.spot.LegPhases[2])
+            BR_phases.append(env.spot.LegPhases[3])
 
-        # Get Desired Foot Poses
-        T_bf = bzg.GenerateTrajectory(StepLength, LateralFraction, YawRate,
-                                      StepVelocity, T_bf0, T_bf,
-                                      ClearanceHeight, PenetrationDepth,
-                                      contacts)
-        joint_angles = spot.IK(orn, pos, T_bf)
+            # Get Desired Foot Poses
+            T_bf = bzg.GenerateTrajectory(StepLength, LateralFraction, YawRate,
+                                        StepVelocity, T_bf0, T_bf,
+                                        ClearanceHeight, PenetrationDepth,
+                                        contacts)
+            joint_angles = spot.IK(orn, pos, T_bf)
 
-        FL_Elbow.append(np.degrees(joint_angles[0][-1]))
+            FL_Elbow.append(np.degrees(joint_angles[0][-1]))
 
-        # for i, (key, Tbf_in) in enumerate(T_bf.items()):
-        #     print("{}: \t Angle: {}".format(key, np.degrees(joint_angles[i])))
-        # print("-------------------------")
+            # for i, (key, Tbf_in) in enumerate(T_bf.items()):
+            #     print("{}: \t Angle: {}".format(key, np.degrees(joint_angles[i])))
+            # print("-------------------------")
 
-        env.pass_joint_angles(joint_angles.reshape(-1))
-        # Get External Observations
-        env.spot.GetExternalObservations(bzg, bz_step)
-        # Step
-        state, reward, done, _ = env.step(action)
-        # print("IMU Roll: {}".format(state[0]))
-        # print("IMU Pitch: {}".format(state[1]))
-        # print("IMU GX: {}".format(state[2]))
-        # print("IMU GY: {}".format(state[3]))
-        # print("IMU GZ: {}".format(state[4]))
-        # print("IMU AX: {}".format(state[5]))
-        # print("IMU AY: {}".format(state[6]))
-        # print("IMU AZ: {}".format(state[7]))
-        # print("-------------------------")
-        if done:
-            print("DONE")
-            if ARGS.AutoReset:
-                env.reset()
-                plt.plot()
-                # plt.plot(FL_phases, label="FL")
-                # plt.plot(FR_phases, label="FR")
-                # plt.plot(BL_phases, label="BL")
-                # plt.plot(BR_phases, label="BR")
-                plt.plot(FL_Elbow, label="FL ELbow (Deg)")
-                plt.xlabel("dt")
-                plt.ylabel("value")
-                plt.title("Leg Phases")
-                plt.legend()
-                out = os.path.join(results_path, "leg_phases.png")
-                plt.savefig(out)
-                print("Saved Leg Phases Plot to: {}".format(out))
-                plt.close()
+            env.pass_joint_angles(joint_angles.reshape(-1))
+            # Get External Observations
+            env.spot.GetExternalObservations(bzg, bz_step)
+            # Step
+            state, reward, done, _ = env.step(action)
+            # print("IMU Roll: {}".format(state[0]))
+            # print("IMU Pitch: {}".format(state[1]))
+            # print("IMU GX: {}".format(state[2]))
+            # print("IMU GY: {}".format(state[3]))
+            # print("IMU GZ: {}".format(state[4]))
+            # print("IMU AX: {}".format(state[5]))
+            # print("IMU AY: {}".format(state[6]))
+            # print("IMU AZ: {}".format(state[7]))
+            # print("-------------------------")
+            if done:
+                print("DONE")
+                if ARGS.AutoReset:
+                    env.reset()
+                    plt.plot()
+                    # plt.plot(FL_phases, label="FL")
+                    # plt.plot(FR_phases, label="FR")
+                    # plt.plot(BL_phases, label="BL")
+                    # plt.plot(BR_phases, label="BR")
+                    plt.plot(FL_Elbow, label="FL ELbow (Deg)")
+                    plt.xlabel("dt")
+                    plt.ylabel("value")
+                    plt.title("Leg Phases")
+                    plt.legend()
+                    out = os.path.join(results_path, "leg_phases.png")
+                    plt.savefig(out)
+                    print("Saved Leg Phases Plot to: {}".format(out))
+                    plt.close()
 
-        # time.sleep(1.0)
+            # Render and save frames for video
+            if ARGS.RenderVideo:
+                if t % 1 == 0:
+                    frame = env.render(mode="rgb_array")
+                    assert frame.shape == (frame_width, frame_height, 3), \
+                        f"Expected frame shape {(frame_width, frame_height, 3)}, got {frame.shape}"
+                    # frame = cv2.resize(frame, (frame_width, frame_height))
+                    frame_file = os.path.join(video_frames_path, f"frame_{t:04d}.png")
+                    cv2.imwrite(frame_file, frame)
+                    video_writer.write(frame)
 
-        t += 1
+            # time.sleep(1.0)
+
+            t += 1
+    
+    except KeyboardInterrupt:
+        print("Simulation interrupted by user.")
+
     env.close()
-    print(joint_angles)
+
+    if ARGS.RenderVideo:
+        video_writer.release()
+        print(f"Simulation video saved to: {video_path}")
+        print(joint_angles)
 
 
 if __name__ == '__main__':
