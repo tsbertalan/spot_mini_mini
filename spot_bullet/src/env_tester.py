@@ -50,7 +50,7 @@ parser.add_argument("--DontRandomize",
                     help="Do NOT Randomize State and Environment.",
                     action='store_true')
 parser.add_argument("--RenderVideo",
-                    help="Render Video of Simulation",
+                    help="Render Video of Simulation. Drastically slow down simulation.",
                     action='store_true')
 
 save_every_nth_frame = 2
