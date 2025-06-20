@@ -52,6 +52,8 @@ parser.add_argument("--DontRandomize",
 parser.add_argument("--RenderVideo",
                     help="Render Video of Simulation",
                     action='store_true')
+
+save_every_nth_frame = 2
 ARGS = parser.parse_args()
 
 import os
@@ -63,7 +65,7 @@ def main():
 
     print("STARTING SPOT TEST ENV")
     seed = 0
-    max_timesteps = 4e2
+    max_timesteps = 4e3
 
     # Find abs path to this file
     my_path = os.path.abspath(os.path.dirname(__file__))
@@ -102,6 +104,10 @@ def main():
                         draw_foot_path=draw_foot_path,
                         env_randomizer=env_randomizer)
 
+    # Ensure env.observation_space and env.action_space are initialized
+    if env.observation_space is None or env.action_space is None:
+        raise ValueError("Environment observation_space or action_space is not initialized.")
+
     # Set seeds
     env.seed(seed)
     np.random.seed(seed)
@@ -135,18 +141,29 @@ def main():
 
     yaw = 0.0
 
-    if ARGS.RenderVideo:
-        # Create a directory for video frames
-        video_frames_path = os.path.join(results_path, "video_frames")
-        if not os.path.exists(video_frames_path):
-            os.makedirs(video_frames_path)
+    # Ensure variables are always initialized
+    frame_width, frame_height = 960, 720
+    video_frames_path = os.path.join(results_path, "video_frames")
+    if not os.path.exists(video_frames_path):
+        os.makedirs(video_frames_path)
+    video_path = os.path.join(results_path, "simulation_video.mp4")
+    video_writer = None  # Initialize to None to avoid unbound errors
+    joint_angles = np.zeros((4, 3))  # Initialize to avoid unbound errors
 
-        # Initialize video writer
-        video_path = os.path.join(results_path, "simulation_video.mp4")
-        frame_width, frame_height = 720, 960
-        fps = 30
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        video_writer = cv2.VideoWriter(video_path, fourcc, fps, (frame_width, frame_height))
+    # Initialize video_writer only if RenderVideo is true
+    if ARGS.RenderVideo:
+        # Ensure video_writer is initialized correctly
+        print("Initializing video writer...")
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # Alternative codec initialization
+        video_writer = cv2.VideoWriter(video_path, fourcc, 30, (frame_width, frame_height))
+        if not video_writer.isOpened():
+            raise ValueError("Failed to initialize video writer. Check codec and file path.")
+        print("Video writer initialized successfully.")
+
+        # Debugging video writing process
+        print("Video writer initialized.")
+        print(f"Video path: {video_path}")
+        print(f"Frame dimensions: {frame_width}x{frame_height}, FPS: 30")
 
     print("STARTED SPOT TEST ENV")
     try:
@@ -246,30 +263,43 @@ def main():
                     print("Saved Leg Phases Plot to: {}".format(out))
                     plt.close()
 
-            # Render and save frames for video
+            # Ensure frames are correctly captured and written
             if ARGS.RenderVideo:
-                if t % 1 == 0:
+                print("Rendering and saving frames...")
+                if save_every_nth_frame == 1 or t % save_every_nth_frame == 0:
                     frame = env.render(mode="rgb_array")
-                    assert frame.shape == (frame_width, frame_height, 3), \
-                        f"Expected frame shape {(frame_width, frame_height, 3)}, got {frame.shape}"
-                    # frame = cv2.resize(frame, (frame_width, frame_height))
-                    frame_file = os.path.join(video_frames_path, f"frame_{t:04d}.png")
-                    cv2.imwrite(frame_file, frame)
-                    video_writer.write(frame)
+                    if frame is None:
+                        print("Frame capture failed. Ensure the environment is rendering correctly.")
+                    else:
+                        print(f"Captured frame shape: {frame.shape}")
+                        # Frame is returned as (height, width, channels)
+                        assert frame.shape == (frame_height, frame_width, 3), \
+                            f"Expected frame shape {(frame_width, frame_height, 3)}, got {frame.shape}"
+                        # frame_file = os.path.join(video_frames_path, f"frame_{t:04d}.png")
+                        # cv2.imwrite(frame_file, frame)
+                        # print(f"Frame saved to: {frame_file}")
+                        video_writer.write(frame)
+                        print("Frame written to video writer.")
 
             # time.sleep(1.0)
 
             t += 1
-    
+
     except KeyboardInterrupt:
         print("Simulation interrupted by user.")
 
-    env.close()
+    finally:
+        env.close()
 
-    if ARGS.RenderVideo:
-        video_writer.release()
-        print(f"Simulation video saved to: {video_path}")
-        print(joint_angles)
+        if ARGS.RenderVideo:
+            # Ensure video writer is finalized
+            print("Finalizing video writer...")
+            try:
+                video_writer.release()
+                print(f"Simulation video saved to: {video_path}")
+            except Exception as e:
+                print(f"Error during video finalization: {e}")
+            print(joint_angles)
 
 
 if __name__ == '__main__':
