@@ -4,9 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 
-import sys
+import sys, os
+from pathlib import Path
+HERE = Path(os.path.dirname(os.path.abspath(__file__)))
 
-sys.path.append('../../')
+sys.path.append(str(HERE / "../.."))  # Add the parent directory to the path
 
 from spotmicro.GymEnvs.spot_bezier_env import spotBezierEnv
 from spotmicro.util.gui import GUI
@@ -52,6 +54,9 @@ parser.add_argument("-dr",
                     action='store_true')
 ARGS = parser.parse_args()
 
+import os
+os.environ['PYBULLET_EGL'] = '1'  # Enable EGL for headless rendering
+
 
 def main():
     """ The main() function. """
@@ -91,7 +96,7 @@ def main():
     else:
         env_randomizer = SpotEnvRandomizer()
 
-    env = spotBezierEnv(render=True,
+    env = spotBezierEnv(render=False,  # Disable GUI rendering
                         on_rack=on_rack,
                         height_field=height_field,
                         draw_foot_path=draw_foot_path,
@@ -139,8 +144,16 @@ def main():
         pos, orn, StepLength, LateralFraction, YawRate, StepVelocity, ClearanceHeight, PenetrationDepth = bz_step.StateMachine(
         )
 
-        pos, orn, StepLength, LateralFraction, YawRate, StepVelocity, ClearanceHeight, PenetrationDepth, SwingPeriod = g_u_i.UserInput(
-        )
+        # Hardcoded values for UserInput
+        pos = [0.0, 0.0, 0.0]
+        orn = [0.0, 0.0, 0.0]
+        StepLength = 0.1
+        LateralFraction = 0.0
+        YawRate = 0.0
+        StepVelocity = 0.1
+        ClearanceHeight = 0.05
+        PenetrationDepth = 0.01
+        SwingPeriod = 0.5
 
         # Update Swing Period
         bzg.Tswing = SwingPeriod
@@ -198,17 +211,20 @@ def main():
             print("DONE")
             if ARGS.AutoReset:
                 env.reset()
-                # plt.plot()
-                # # plt.plot(FL_phases, label="FL")
-                # # plt.plot(FR_phases, label="FR")
-                # # plt.plot(BL_phases, label="BL")
-                # # plt.plot(BR_phases, label="BR")
-                # plt.plot(FL_Elbow, label="FL ELbow (Deg)")
-                # plt.xlabel("dt")
-                # plt.ylabel("value")
-                # plt.title("Leg Phases")
-                # plt.legend()
-                # plt.show()
+                plt.plot()
+                # plt.plot(FL_phases, label="FL")
+                # plt.plot(FR_phases, label="FR")
+                # plt.plot(BL_phases, label="BL")
+                # plt.plot(BR_phases, label="BR")
+                plt.plot(FL_Elbow, label="FL ELbow (Deg)")
+                plt.xlabel("dt")
+                plt.ylabel("value")
+                plt.title("Leg Phases")
+                plt.legend()
+                out = os.path.join(results_path, "leg_phases.png")
+                plt.savefig(out)
+                print("Saved Leg Phases Plot to: {}".format(out))
+                plt.close()
 
         # time.sleep(1.0)
 
