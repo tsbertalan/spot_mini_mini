@@ -6,3 +6,4 @@ dist/
 build/
 _build/
 *.pyc
+spot_bullet/results/simulation_video.mp4
