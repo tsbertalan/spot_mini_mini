@@ -7,3 +7,5 @@ build/
 _build/
 *.pyc
 spot_bullet/results/simulation_video.mp4
+spot_bullet/results/video_frames/*.png
+spot_bullet/results/leg_phases.png
