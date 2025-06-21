@@ -53,7 +53,7 @@ parser.add_argument("--RenderVideo",
                     help="Render Video of Simulation. Drastically slow down simulation.",
                     action='store_true')
 
-save_every_nth_frame = 2
+save_every_nth_frame = 4
 ARGS = parser.parse_args()
 
 import os
@@ -235,6 +235,7 @@ def main():
             env.spot.GetExternalObservations(bzg, bz_step)
             # Step
             state, reward, done, _ = env.step(action)
+            print(f"State shape: {state.shape}, Action shape: {action.shape}, Reward: {reward}, Done: {done}")
             # print("IMU Roll: {}".format(state[0]))
             # print("IMU Pitch: {}".format(state[1]))
             # print("IMU GX: {}".format(state[2]))
