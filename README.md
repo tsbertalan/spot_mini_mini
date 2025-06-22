@@ -1,4 +1,6 @@
-Note: development for this project was haulted in November 2020 to respect my NDA with my employer.
+Tom forked this 2025-06 to use the simulator in [Newton-Euler Finetune for Quadruped](https://github.com/tsbertalan/Newton-Euler-Finetune-for-Quadruped).
+
+Note: development for this project was haulted in November 2020 to respect my NDA with [OpenQuadruped](https://github.com/OpenQuadruped)'s employer.
 
 ## Spot Mini Mini OpenAI Gym Environment
 
@@ -39,23 +41,23 @@ If you don't need a Gym environment, that's okay too! `env_tester.py` works with
 
 Table of Contents
 -----------------
-  * [Motivation](#motivation)
-  * [Kinematics](#kinematics)
-  * [D^2 Gait Modulation with Bezier Curves](#d2-gait-modulation-with-bezier-curves)
-    * [Training](#Training)
-    * [Real World Validation](#real-world-validation)
-  * [Gait](#gait)
-  * [How To Run](#how-to-run)
-     * [Dependencies](#dependencies)
-     * [Joystick Control with ROS](#joystick-control-with-ros)
-     * [Testing Environment (Non-Joystick)](#testing-environment-non-joystick)
-     * [Reinforcement Learning Agent Training](#reinforcement-learning-agent-training)
-     * [Reinforcement Learning Agent Evaluation](#reinforcement-learning-agent-evaluation)
-     * [Using Different Terrain](#using-different-terrain)
-  * [Hardware](https://github.com/moribots/spot_mini_mini/tree/spot/spot_real)
-     * [Assembly & Calibration](https://github.com/moribots/spot_mini_mini/tree/spot/spot_real/Calibration.md)
-  * [Citing Spot Mini Mini](#citing-spot-mini-mini)
-  * [Credits](#credits)
+- [Spot Mini Mini OpenAI Gym Environment](#spot-mini-mini-openai-gym-environment)
+- [Motivation](#motivation)
+- [Table of Contents](#table-of-contents)
+  - [Kinematics](#kinematics)
+  - [D^2 Gait Modulation with Bezier Curves](#d2-gait-modulation-with-bezier-curves)
+    - [Training](#training)
+    - [Real World Validation](#real-world-validation)
+  - [Gait](#gait)
+- [How To Run](#how-to-run)
+  - [Dependencies](#dependencies)
+  - [Joystick Control with ROS](#joystick-control-with-ros)
+  - [Testing Environment (Non-Joystick)](#testing-environment-non-joystick)
+  - [Reinforcement Learning Agent Training](#reinforcement-learning-agent-training)
+  - [Reinforcement Learning Agent Evaluation](#reinforcement-learning-agent-evaluation)
+  - [Using Different Terrain](#using-different-terrain)
+- [Citing Spot Mini Mini](#citing-spot-mini-mini)
+- [Credits](#credits)
 
 ### Kinematics
 
